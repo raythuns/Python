@@ -2,23 +2,28 @@
 import sys
 
 
-def print_box(box):
+def before_print_box(box):
   for i in range(len(box)):
     for j in range(len(box[0])):
       if box[i][j] == 'w':
         j2 = j-1 if j > 0 else 0
         if box[i][j2] == 'p' or box[i][j2] == ' ':
-          sys.stdout.write(':w:')
+          yield ':w:'
         else:
-          sys.stdout.write('w:')
+          yield 'w:'
       else:
         j3 = j+1 if j < len(box[0])-1 else len(box[0])-1
         if box[i][j3] == 'w':
-          sys.stdout.write(box[i][j])
+          yield box[i][j]
         else:
-          sys.stdout.write(box[i][j] + ' ')
-    sys.stdout.write('\b ')
-    print('')
+          yield box[i][j] + ' '
+    yield '\n'
+
+
+def print_box(box):
+  sbox = ''.join(before_print_box(box))
+  pbox = sbox.replace(':\n', '\n')
+  sys.stdout.write(pbox)
 
 
 def get_sub(box):
