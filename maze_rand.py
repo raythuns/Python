@@ -5,16 +5,20 @@ def base_nodes(row, col):
     return [['n' for _ in range(col)] for _ in range(row)]
 
 
+def safe_direction(base_direction, r, c, row, col):
+    if r == 0:
+        base_direction = base_direction.replace('u', '')
+    elif r == row-1:
+        base_direction = base_direction.replace('d', '')
+    if c == 0:
+        base_direction = base_direction.replace('l', '')
+    elif c == col-1:
+        base_direction = base_direction.replace('r', '')
+    return base_direction
+
+
 def rand_direction(pos_r, pos_c, row, col):
-    rand_chars = 'lrud'
-    if pos_r == 0:
-        rand_chars = rand_chars.replace('u', '')
-    elif pos_r == row-1:
-        rand_chars = rand_chars.replace('d', '')
-    if pos_c == 0:
-        rand_chars = rand_chars.replace('l', '')
-    elif pos_c == col-1:
-        rand_chars = rand_chars.replace('r', '')
+    rand_chars = safe_direction('lrud', pos_r, pos_c, row, col)
     rand_num = random.randint(1, len(rand_chars))
     return ''.join(random.sample(rand_chars, rand_num))
 
@@ -46,6 +50,40 @@ def dfs_visit(nodes, pos_r, pos_c, group):
     nodes[pos_r][pos_c] = group + nodes[pos_r][pos_c]
 
 
+def contact_tree(nodes, r, c):
+    def node_state(state):
+        num, direc = [], []
+        end = False
+        for a in state:
+            if a in 'lurd':
+                direc.append(a)
+            elif a == 'b':
+                pass
+            elif a == 'e':
+                end = True
+            else:
+                num.append(a)
+        return int(''.join(num)), set(direc), end
+    stack = []
+    row = len(nodes)
+    col = len(nodes[0])
+    while True:
+        group, direction, end = node_state(nodes[r][c])
+        for find in set(safe_direction('lurd', r, c, row, col)) - direction:
+            _next_r, _next_c = next_node(r, c, find)
+            g, _, _ = node_state(nodes[_next_r][_next_c])
+            if g != group:
+                nodes[r][c] = nodes[r][c] + find
+                return
+        if end and len(stack) != 0:
+            r, c, direction = stack.pop()
+        else:
+            return
+        r, c = next_node(r, c, direction.pop())
+        if len(direction) != 0:
+            stack.append(((r, c), direction))
+
+
 def dfs_route(nodes):
     row = len(nodes)
     col = len(nodes[0])
@@ -60,6 +98,8 @@ def dfs_route(nodes):
             dfs_visit(nodes, r, c, group)
             nodes[r][c] = 'b' + nodes[r][c]
             beginlist.append((r, c))
+    for r, c in beginlist:
+        contact_tree(nodes, r, c)
     return beginlist
 
 
@@ -84,6 +124,15 @@ def blank_position_in_box(nodes):
                     pass
 
 
+def find_a_exit(begin_r, begin_c, row, col):
+    res_r = res_c = 0
+    if begin_r < row/2:
+        res_r = row - 1
+    if begin_c < col/2:
+        res_c = col - 1
+    return res_r, res_c
+
+
 def build_box(row, col):
     nodes = base_nodes(row, col)
     beginlist = dfs_route(nodes)
@@ -92,4 +141,6 @@ def build_box(row, col):
         box[r][c] = ' '
     r, c = beginlist[0]
     box[r*2+1][c*2+1] = 'p'
+    exit_r, exit_c = find_a_exit(r, c, row, col)
+    box[exit_r*2+1][0 if exit_c == 0 else exit_c*2+2] = ' '
     return box
