@@ -1,5 +1,6 @@
 import tkinter as tk
 from maze import *
+from maze_rand import build_box
 
 
 keypress_event = {
@@ -48,7 +49,9 @@ def keypress(event):
 def main():
     global root, box, textvar
     root = tk.Tk()
-    box = a_default_box()
+    root.title('Maze')
+    # box = a_default_box()
+    box = build_box(16, 16)
     textvar = tk.StringVar()
     update_box(textvar)
     label = tk.Label(root, textvariable=textvar,
