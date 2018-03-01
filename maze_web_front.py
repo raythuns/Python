@@ -12,18 +12,36 @@ html = b"""\
     <meta charset="UTF-8">
     <title>Maze</title>
     <style>
+        html {
+            font-size: 20px;
+        }
+        body {
+            font-size: 16px;
+        }
+        @media screen and (max-width: 412px) {
+            html {
+                font-size: 16px;
+            }
+        }
+        @media screen and (max-width: 375px) {
+            html {
+                font-size: 14px;
+            }
+        }
+        #container, .controller {
+            text-align: center;
+        }
         #container .row {
             margin: 0;
             padding: 0;
             line-height: 0;
         }
         #container .row .col {
-            margin: -1px;
+            margin: -1px 0 0 -1px;
             padding: 0;
-            width: 16px;
-            height: 16px;
+            width: 0.8rem;
+            height: 0.8rem;
             display: inline-block;
-            background-clip: border-box;
         }
         #container .row .wall {
             background-color: chocolate;
@@ -31,13 +49,25 @@ html = b"""\
         #container .row .blank {
         }
         #container .row .people {
-            padding: 4px;
-            width: 8px;
-            height: 8px;
+            padding: 0.2rem;
+            width: 0.4rem;
+            height: 0.4rem;
             background-color: blue;
             background-clip: content-box;
         }
     </style>
+    <script>
+        var u = navigator.userAgent;
+        isAndroid = u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
+        isiOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
+        if (isAndroid || isiOS) {
+            e = document.createElement('meta');
+            e.name="viewport";
+            e.content="width=device-width, initial-scale=1.0," +
+                " maximum-scale=1.0, user-scalable=no";
+            document.head.appendChild(e);
+        }
+    </script>
 </head>
 <body>
 <div id="container">
@@ -121,11 +151,12 @@ html = b"""\
     };
     game_start();
 </script>
-<p>
+<p class="controller">
     <button onclick="send_direction('LEFT')">LEFT</button>
     <button onclick="send_direction('UP')">UP</button>
     <button onclick="send_direction('DOWN')">DOWN</button>
     <button onclick="send_direction('RIGHT')">RIGHT</button>
+    &nbsp;
 </p>
 </body>
 </html>
