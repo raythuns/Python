@@ -18,11 +18,12 @@ html = b"""\
             line-height: 0;
         }
         #container .row .col {
-            margin: 0;
+            margin: -1px;
             padding: 0;
             width: 16px;
             height: 16px;
             display: inline-block;
+            background-clip: border-box;
         }
         #container .row .wall {
             background-color: chocolate;
@@ -120,6 +121,12 @@ html = b"""\
     };
     game_start();
 </script>
+<p>
+    <button onclick="send_direction('LEFT')">LEFT</button>
+    <button onclick="send_direction('UP')">UP</button>
+    <button onclick="send_direction('DOWN')">DOWN</button>
+    <button onclick="send_direction('RIGHT')">RIGHT</button>
+</p>
 </body>
 </html>
 """
