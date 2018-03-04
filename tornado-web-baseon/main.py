@@ -1,19 +1,13 @@
+# Run to start web server
+
 import tornado.ioloop
 import tornado.web
 
-
-class HomeHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write("something.")
+from settings import settings
+from urls import urls
 
 
-settings = {
-
-}
-
-app = tornado.web.Application([
-    (r"/", HomeHandler),
-    ], **settings)
+app = tornado.web.Application(urls, **settings)
 
 
 if __name__ == "__main__":
