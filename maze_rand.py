@@ -50,38 +50,59 @@ def dfs_visit(nodes, pos_r, pos_c, group):
     nodes[pos_r][pos_c] = group + nodes[pos_r][pos_c]
 
 
-def contact_tree(nodes, r, c):
+def contact_tree(nodes, beginlist):
     def node_state(state):
-        num, direc = [], []
-        end = False
+        direc = set()
+        num = []
         for a in state:
             if a in 'lurd':
-                direc.append(a)
+                direc.add(a)
             elif a == 'b':
                 pass
             elif a == 'e':
-                end = True
+                pass
             else:
                 num.append(a)
-        return int(''.join(num)), set(direc), end
-    stack = []
+        return int(''.join(num)), set(direc)
+
+    def loop(nodes, row, col, stack, find_groups):
+        while True:
+            if len(stack) == 0:
+                return False
+            (r, c), direction, _pass, possible = stack[-1]
+            finds = possible - direction - _pass
+            for f in finds:
+                _pass.add(f)
+                _next_r, _next_c = next_node(r, c, f)
+                g, _ = node_state(nodes[_next_r][_next_c])
+                if g not in find_groups:
+                    nodes[r][c] = nodes[r][c] + f
+                    find_groups.append(g)
+                    stack[-1] = ((r, c), direction, _pass, possible)
+                    return True
+            if len(direction) != 0:
+                _next = direction.pop()
+                _pass.add(_next)
+                stack[-1] = ((r, c), direction, _pass, possible)
+                r, c = next_node(r, c, _next)
+                _, direction = node_state(nodes[r][c])
+                possible = set(safe_direction('lurd', r, c, row, col))
+                stack.append(((r, c), direction, set(), possible))
+            else:
+                stack.pop()
     row = len(nodes)
     col = len(nodes[0])
-    while True:
-        group, direction, end = node_state(nodes[r][c])
-        for find in set(safe_direction('lurd', r, c, row, col)) - direction:
-            _next_r, _next_c = next_node(r, c, find)
-            g, _, _ = node_state(nodes[_next_r][_next_c])
-            if g != group:
-                nodes[r][c] = nodes[r][c] + find
-                return
-        if end and len(stack) != 0:
-            r, c, direction = stack.pop()
-        else:
-            return
-        r, c = next_node(r, c, direction.pop())
-        if len(direction) != 0:
-            stack.append(((r, c), direction))
+    find_groups = [0]
+    stacks = []
+    for r, c in beginlist:
+        _, direction = node_state(nodes[r][c])
+        possible = set(safe_direction('lurd', r, c, row, col))
+        stacks.append([((r, c), direction, set(), possible)])
+    while len(find_groups) < len(stacks):
+        for group in find_groups[::-1]:
+            stack = stacks[group]
+            if loop(nodes, row, col, stack, find_groups):
+                break
 
 
 def dfs_route(nodes):
@@ -98,8 +119,7 @@ def dfs_route(nodes):
             dfs_visit(nodes, r, c, group)
             nodes[r][c] = 'b' + nodes[r][c]
             beginlist.append((r, c))
-    for r, c in beginlist:
-        contact_tree(nodes, r, c)
+    contact_tree(nodes, beginlist)
     return beginlist
 
 
