@@ -3,19 +3,21 @@ import hashlib
 
 from source.modules.session_sqlalchemy import (
     add_session, set_session, del_session, ini_session)
+from datetime import datetime, timedelta
 
 container = {}
 
 
 class _Session:
     @staticmethod
-    def create(info=None, expire_date=0):
+    def create(info=None, expire_day=30):
         if not info:
             info = {}
         elif not isinstance(info, dict):
             raise ValueError("Must a dict or None.")
         global container
         session_id = _Session._get_random_md5()
+        expire_date = datetime.now() + timedelta(days=expire_day)
         container[session_id] = (expire_date, info)
         add_session(session_id, info, expire_date)
         return session_id
@@ -42,7 +44,8 @@ class _Session:
 
     @staticmethod
     def get(session_id):
-        session_id = session_id.decode('utf-8')
+        if session_id is not None:
+            session_id = session_id.decode('utf-8')
         if session_id in container.keys():
             return container[session_id][1]
         else:

@@ -1,5 +1,6 @@
 from source.modules.session_sqlalchemy_model import TornadoSession
 from source.modules.orm import Session
+from datetime import datetime
 import pickle
 import base64
 
@@ -45,8 +46,12 @@ def del_session(session_id):
 def ini_session():
     ret = dict()
     sess = Session()
-    for i in sess.query(TornadoSession).all():
+    dn = datetime.now()
+    for i in sess.query(TornadoSession):
+        if i.expire_date <= dn:
+            del_session(i.session_id)
+            continue
         ret[i.session_id] =\
-            (0, _decode(i.session_data))
+            (i.expire_date, _decode(i.session_data))
     sess.close()
     return ret
