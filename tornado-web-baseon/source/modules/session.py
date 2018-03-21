@@ -1,68 +1,64 @@
 import uuid
 import hashlib
 
-from source.modules.session_sqlalchemy import (
-    add_session, set_session, del_session, ini_session)
+from source.modules.lib.session_sqlalchemy import (
+    add_session, set_session, del_session, init_session)
 from datetime import datetime, timedelta
 
-container = {}
 
+class Session:
+    container = {}
 
-class _Session:
-    @staticmethod
-    def create(info=None, expire_day=30):
+    def __init__(self, db):
+        self.db = db
+
+    def create(self, info=None, expire_day=30):
         if not info:
             info = {}
         elif not isinstance(info, dict):
             raise ValueError("Must a dict or None.")
-        global container
-        session_id = _Session._get_random_md5()
+        session_id = self._get_random_md5()
         expire_date = datetime.now() + timedelta(days=expire_day)
-        container[session_id] = (expire_date, info)
-        add_session(session_id, info, expire_date)
+        self.container[session_id] = (expire_date, info)
+        add_session(self.db, session_id, info, expire_date)
         return session_id
 
-    @staticmethod
-    def remove(session_id):
+    def remove(self, session_id):
         session_id = session_id.decode('utf-8')
-        global container
-        if session_id in container.keys():
-            del_session(session_id)
-            container.pop(session_id)
+        if session_id in self.container.keys():
+            del_session(self.db, session_id)
+            self.container.pop(session_id)
 
-    @staticmethod
-    def set(session_id, info):
+    def set(self, session_id, info):
         session_id = session_id.decode('utf-8')
         if not isinstance(info, dict):
             raise ValueError("Must a dict")
-        global container
-        if session_id in container.keys():
-            set_session(session_id, info)
+        if session_id in self.container.keys():
+            set_session(self.db, session_id, info)
             return True
         else:
-            return False
+            find = init_session(self.db, session_id)
+            if find:
+                find[1] = info
+                self.container[session_id] = find
+                set_session(self.db, session_id, info)
+            else:
+                return False
 
-    @staticmethod
-    def get(session_id):
-        if session_id is not None:
-            session_id = session_id.decode('utf-8')
-        if session_id in container.keys():
-            return container[session_id][1]
+    def get(self, session_id):
+        if not session_id:
+            return
+        session_id = session_id.decode('utf-8')
+        if session_id in self.container.keys():
+            return self.container[session_id][1]
         else:
-            return {"user": None}
+            find = init_session(self.db, session_id)
+            if find:
+                self.container[session_id] = find
+                return find[1]
 
     @staticmethod
     def _get_random_md5():
         u = uuid.uuid1()
         h = hashlib.md5(u.bytes)
         return h.hexdigest()
-
-    @staticmethod
-    def _init_all():
-        global container
-        container = ini_session()
-
-
-_Session._init_all()
-
-session = _Session

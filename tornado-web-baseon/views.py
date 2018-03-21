@@ -1,8 +1,8 @@
 # Views here.
 
-from tornado.web import RequestHandler
+from source.components.base import BaseHandler
 
 
-class HomeHandler(RequestHandler):
+class HomeHandler(BaseHandler):
     def get(self):
         self.render("sample.html")

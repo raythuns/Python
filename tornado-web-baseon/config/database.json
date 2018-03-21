@@ -1,0 +1,8 @@
+{
+  "ENGINE": "mysqlconnector",
+  "NAME": "your database",
+  "USER": "your username",
+  "PASSWORD": "your password",
+  "PORT": 3306,
+  "HOST": "127.0.0.1"
+}

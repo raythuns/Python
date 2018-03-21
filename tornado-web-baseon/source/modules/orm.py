@@ -15,4 +15,4 @@ engine = create_engine('mysql+%s://%s:%s@%s:%d/%s' % (
     _['ENGINE'], _['USER'], _['PASSWORD'],
     _['HOST'], _['PORT'], _['NAME']))
 
-Session = sessionmaker(bind=engine)
+DBSession = sessionmaker(bind=engine)
