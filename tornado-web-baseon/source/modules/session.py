@@ -21,44 +21,77 @@ class Session:
         expire_date = datetime.now() + timedelta(days=expire_day)
         self.container[session_id] = (expire_date, info)
         add_session(self.db, session_id, info, expire_date)
-        return session_id
+        return self.get_instance(session_id)
 
-    def remove(self, session_id):
-        session_id = session_id.decode('utf-8')
-        if session_id in self.container.keys():
-            del_session(self.db, session_id)
-            self.container.pop(session_id)
-
-    def set(self, session_id, info):
-        session_id = session_id.decode('utf-8')
-        if not isinstance(info, dict):
-            raise ValueError("Must a dict")
-        if session_id in self.container.keys():
-            set_session(self.db, session_id, info)
-            return True
-        else:
-            find = init_session(self.db, session_id)
-            if find:
-                find[1] = info
-                self.container[session_id] = find
-                set_session(self.db, session_id, info)
-            else:
-                return False
-
-    def get(self, session_id):
+    def get_instance(self, session_id):
         if not session_id:
             return
-        session_id = session_id.decode('utf-8')
+        if isinstance(session_id, bytes):
+            session_id = session_id.decode('utf-8')
         if session_id in self.container.keys():
-            return self.container[session_id][1]
+            pass
         else:
             find = init_session(self.db, session_id)
-            if find:
-                self.container[session_id] = find
-                return find[1]
+            if not find:
+                return
+            self.container[session_id] = find
+        data = dict(self.container[session_id][1])
+        return SessionInstance(self, session_id, data)
+
+    def merge_instance(self, instance):
+        if isinstance(instance, SessionInstance):
+            s_id = instance.id
+            if len(instance.change):
+                    self.container[s_id][1].update(instance.change)
+            if len(instance.delete):
+                for k in instance.delete:
+                    del self.container[s_id][1][k]
+            if len(instance.change) or len(instance.delete):
+                set_session(self.db, s_id, self.container[s_id][1])
+
+    def destroy_instance(self, instance):
+        if isinstance(instance, SessionInstance):
+            s_id = instance.id
+            del_session(self.db, s_id)
+            del self.container[s_id]
 
     @staticmethod
     def _get_random_md5():
         u = uuid.uuid1()
         h = hashlib.md5(u.bytes)
         return h.hexdigest()
+
+
+class SessionInstance:
+    def __init__(self, session, session_id, session_data):
+        self.session = session
+        self.id = session_id
+        self.data = session_data
+        self.change = {}
+        self.delete = set()
+
+    def get(self, key):
+        rtn = None
+        try:
+            rtn = self.change[key]
+        except KeyError:
+            rtn = self.data[key]
+        return rtn
+
+    def set(self, key, value):
+        self.change[key] = value
+
+    def remove(self, key):
+        if key in self.change.keys():
+            self.change.pop(key)
+        elif key in self.data.keys():
+            self.delete.add(key)
+
+    def destroy(self):
+        self.session.destroy_instance(self)
+
+    def close(self):
+        self.session.merge_instance(self)
+
+    def __del__(self):
+        self.close()
