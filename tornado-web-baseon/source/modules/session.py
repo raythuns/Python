@@ -4,10 +4,11 @@ import hashlib
 from source.modules.lib.session_sqlalchemy import (
     add_session, set_session, del_session, init_session)
 from datetime import datetime, timedelta
+from collections import OrderedDict
 
 
 class Session:
-    container = {}
+    container = OrderedDict()
 
     def __init__(self, db):
         self.db = db
@@ -28,19 +29,16 @@ class Session:
             return
         if isinstance(session_id, bytes):
             session_id = session_id.decode('utf-8')
-        if session_id in self.container.keys():
-            pass
-        else:
-            find = init_session(self.db, session_id)
-            if not find:
-                return
-            self.container[session_id] = find
+        if not self._promise_exist(session_id):
+            return
         data = dict(self.container[session_id][1])
         return SessionInstance(self, session_id, data)
 
     def merge_instance(self, instance):
         if isinstance(instance, SessionInstance):
             s_id = instance.id
+            if not self._promise_exist(s_id):
+                return
             if len(instance.change):
                     self.container[s_id][1].update(instance.change)
             if len(instance.delete):
@@ -53,7 +51,21 @@ class Session:
         if isinstance(instance, SessionInstance):
             s_id = instance.id
             del_session(self.db, s_id)
-            del self.container[s_id]
+            if s_id in self.container.keys():
+                del self.container[s_id]
+
+    def _promise_exist(self, session_id):
+        if session_id in self.container.keys():
+            self.container.move_to_end(session_id)
+            return True
+        else:
+            find = init_session(self.db, session_id)
+            if not find:
+                return False
+            if len(self.container) > 1000:
+                self.container.popitem(False)
+            self.container[session_id] = find
+            return True
 
     @staticmethod
     def _get_random_md5():
