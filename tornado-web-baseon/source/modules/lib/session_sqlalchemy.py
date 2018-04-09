@@ -1,7 +1,8 @@
-from source.modules.lib.session_sqlalchemy_model import TornadoSession
-from datetime import datetime
 import pickle
 import base64
+
+from source.modules.lib.session_sqlalchemy_model import TornadoSession
+from datetime import datetime
 
 
 def _encode(data):
@@ -22,10 +23,13 @@ def add_session(db, session_id, session_data_dict, expire_date):
     db.commit()
 
 
-def set_session(db, session_id, session_data_dict):
+def set_session(db, session_id, session_data_dict=None, expire_date=None):
     ret = db.query(TornadoSession).\
         filter_by(session_id=session_id).first()
-    ret.session_data = _encode(session_data_dict)
+    if session_data_dict:
+        ret.session_data = _encode(session_data_dict)
+    if expire_date:
+        ret.expire_date = expire_date
     db.commit()
 
 

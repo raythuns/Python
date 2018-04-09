@@ -32,7 +32,8 @@ class Session:
         if not self._promise_exist(session_id):
             return
         data = dict(self.container[session_id][1])
-        return SessionInstance(self, session_id, data)
+        return SessionInstance(self, session_id, data,
+                               self.container[session_id][0])
 
     def merge_instance(self, instance):
         if isinstance(instance, SessionInstance):
@@ -44,8 +45,18 @@ class Session:
             if len(instance.delete):
                 for k in instance.delete:
                     del self.container[s_id][1][k]
+            if instance.expire != self.container[s_id][0] and \
+                    instance.expire > datetime.now():
+                self.container[s_id] = (instance.expire,
+                                        self.container[s_id][1])
+                expire_date = instance.expire
+            else:
+                expire_date = None
             if len(instance.change) or len(instance.delete):
-                set_session(self.db, s_id, self.container[s_id][1])
+                set_session(self.db, s_id, self.container[s_id][1],
+                            expire_date)
+            elif expire_date:
+                set_session(self.db, s_id, expire_date=expire_date)
 
     def destroy_instance(self, instance):
         if isinstance(instance, SessionInstance):
@@ -56,6 +67,10 @@ class Session:
 
     def _promise_exist(self, session_id):
         if session_id in self.container.keys():
+            if self.container[session_id][0] <= datetime.now():
+                del self.container[session_id]
+                del_session(self.db, session_id)
+                return False
             self.container.move_to_end(session_id)
             return True
         else:
@@ -75,15 +90,16 @@ class Session:
 
 
 class SessionInstance:
-    def __init__(self, session, session_id, session_data):
+    def __init__(self, session, session_id,
+                 session_data, session_expire):
         self.session = session
         self.id = session_id
         self.data = session_data
+        self.expire = session_expire
         self.change = {}
         self.delete = set()
 
     def get(self, key):
-        rtn = None
         try:
             rtn = self.change[key]
         except KeyError:
