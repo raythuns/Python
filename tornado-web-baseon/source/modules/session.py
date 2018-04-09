@@ -98,6 +98,7 @@ class SessionInstance:
         self.expire = session_expire
         self.change = {}
         self.delete = set()
+        self.use = True
 
     def get(self, key):
         try:
@@ -116,10 +117,15 @@ class SessionInstance:
             self.delete.add(key)
 
     def destroy(self):
-        self.session.destroy_instance(self)
+        self.use and (self.session.destroy_instance(self)
+                      or self._not_use())
 
     def close(self):
-        self.session.merge_instance(self)
+        self.use and (self.session.merge_instance(self)
+                      or self._not_use())
+
+    def _not_use(self):
+        self.use = False
 
     def __del__(self):
         self.close()
