@@ -29,7 +29,7 @@ class Session:
             return
         if isinstance(session_id, bytes):
             session_id = session_id.decode('utf-8')
-        if not self._promise_exist(session_id):
+        if not self._ensure_exist(session_id):
             return
         data = dict(self.container[session_id][1])
         return SessionInstance(self, session_id, data,
@@ -38,7 +38,7 @@ class Session:
     def merge_instance(self, instance):
         if isinstance(instance, SessionInstance):
             s_id = instance.id
-            if not self._promise_exist(s_id):
+            if not self._ensure_exist(s_id):
                 return
             if len(instance.change):
                     self.container[s_id][1].update(instance.change)
@@ -65,7 +65,7 @@ class Session:
             if s_id in self.container.keys():
                 del self.container[s_id]
 
-    def _promise_exist(self, session_id):
+    def _ensure_exist(self, session_id):
         if session_id in self.container.keys():
             if self.container[session_id][0] <= datetime.now():
                 del self.container[session_id]
@@ -101,11 +101,15 @@ class SessionInstance:
         self.use = True
 
     def get(self, key):
+        if key in self.delete:
+            return None
         try:
-            rtn = self.change[key]
+            return self.change[key]
         except KeyError:
-            rtn = self.data[key]
-        return rtn
+            try:
+                return self.data[key]
+            except KeyError:
+                return None
 
     def set(self, key, value):
         self.change[key] = value
@@ -113,7 +117,7 @@ class SessionInstance:
     def remove(self, key):
         if key in self.change.keys():
             self.change.pop(key)
-        elif key in self.data.keys():
+        if key in self.data.keys():
             self.delete.add(key)
 
     def destroy(self):
