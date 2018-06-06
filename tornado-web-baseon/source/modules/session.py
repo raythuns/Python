@@ -1,4 +1,5 @@
 import uuid
+import hashlib
 
 from source.modules.lib.session_sqlalchemy import (
     add_session, set_session, del_session, init_session)
@@ -91,7 +92,8 @@ class Session:
     @staticmethod
     def _get_random_id():
         u = uuid.uuid1()
-        return u.hex
+        h = hashlib.md5(u.bytes)
+        return h.hexdigest()
 
 
 class SessionInstance:
