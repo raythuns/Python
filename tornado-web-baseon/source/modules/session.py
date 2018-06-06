@@ -1,5 +1,4 @@
 import uuid
-import hashlib
 
 from source.modules.lib.session_sqlalchemy import (
     add_session, set_session, del_session, init_session)
@@ -18,19 +17,26 @@ class Session:
             info = {}
         elif not isinstance(info, dict):
             raise ValueError("Must a dict or None.")
-        session_id = self._get_random_md5()
+        session_id = self._get_random_id()
         expire_date = datetime.now() + timedelta(days=expire_day)
         self.container[session_id] = (expire_date, info)
         add_session(self.db, session_id, info, expire_date)
         return self.get_instance(session_id)
 
-    def get_instance(self, session_id):
-        if not session_id:
+    def get_instance(self, session_id_ndor_version):
+        if not session_id_ndor_version:
             return
-        if isinstance(session_id, bytes):
-            session_id = session_id.decode('utf-8')
+        if isinstance(session_id_ndor_version, bytes):
+            session_id_ndor_version = session_id_ndor_version.decode('utf-8')
+        session_id = session_id_ndor_version[:32]
         if not self._ensure_exist(session_id):
             return
+        if len(session_id_ndor_version) > 33:
+            version = int(session_id_ndor_version[33:])
+            if 'v' in self.container[session_id][1] and \
+               self.container[session_id][1]['v'] < version:
+                self._load_or_reload(session_id)
+                self.container[session_id][1]['v'] = version
         data = dict(self.container[session_id][1])
         return SessionInstance(self, session_id, data,
                                self.container[session_id][0])
@@ -40,23 +46,20 @@ class Session:
             s_id = instance.id
             if not self._ensure_exist(s_id):
                 return
-            if len(instance.change):
-                    self.container[s_id][1].update(instance.change)
             if len(instance.delete):
                 for k in instance.delete:
                     del self.container[s_id][1][k]
-            if instance.expire != self.container[s_id][0] and \
-                    instance.expire > datetime.now():
-                self.container[s_id] = (instance.expire,
+            if len(instance.change):
+                self.container[s_id][1].update(instance.change)
+            if instance.new_expire:
+                self.container[s_id] = (instance.new_expire,
                                         self.container[s_id][1])
-                expire_date = instance.expire
-            else:
-                expire_date = None
             if len(instance.change) or len(instance.delete):
                 set_session(self.db, s_id, self.container[s_id][1],
-                            expire_date)
-            elif expire_date:
-                set_session(self.db, s_id, expire_date=expire_date)
+                            instance.new_expire)
+            elif instance.new_expire:
+                set_session(self.db, s_id,
+                            expire_date=instance.new_expire)
 
     def destroy_instance(self, instance):
         if isinstance(instance, SessionInstance):
@@ -74,19 +77,21 @@ class Session:
             self.container.move_to_end(session_id)
             return True
         else:
-            find = init_session(self.db, session_id)
-            if not find:
-                return False
-            if len(self.container) > 1000:
-                self.container.popitem(False)
-            self.container[session_id] = find
-            return True
+            self._load_or_reload(session_id)
+
+    def _load_or_reload(self, session_id):
+        find = init_session(self.db, session_id)
+        if not find:
+            return False
+        self.container[session_id] = find
+        if len(self.container) > 1000:
+            self.container.popitem(False)
+        return True
 
     @staticmethod
-    def _get_random_md5():
+    def _get_random_id():
         u = uuid.uuid1()
-        h = hashlib.md5(u.bytes)
-        return h.hexdigest()
+        return u.hex
 
 
 class SessionInstance:
@@ -96,20 +101,20 @@ class SessionInstance:
         self.id = session_id
         self.data = session_data
         self.expire = session_expire
+        self.new_expire = None
         self.change = {}
         self.delete = set()
         self.use = True
 
     def get(self, key):
-        if key in self.delete:
-            return None
         try:
             return self.change[key]
         except KeyError:
-            try:
-                return self.data[key]
-            except KeyError:
-                return None
+            if key not in self.delete:
+                try:
+                    return self.data[key]
+                except KeyError:
+                    return
 
     def set(self, key, value):
         self.change[key] = value
@@ -119,6 +124,28 @@ class SessionInstance:
             self.change.pop(key)
         if key in self.data.keys():
             self.delete.add(key)
+
+    def reset_expire(self, expire_day=30):
+        self.new_expire = datetime.now() + timedelta(days=expire_day)
+
+    def sign_v(self):
+        if self.use and (len(self.change) or len(self.delete)):
+            if 'v' in self.data:
+                v = self.data['v'] + 1
+            else:
+                v = 0
+            self.set('v', v)
+            if self.new_expire:
+                expire = self.new_expire
+            else:
+                expire = self.expire
+            expire_day = int((
+                expire - datetime.now()).total_seconds()) / 86400
+            rtn = ('%s|%d' % (self.id, v), expire_day)
+        else:
+            rtn = None
+        self.close()
+        return rtn
 
     def destroy(self):
         self.use and (self.session.destroy_instance(self)
