@@ -1,6 +1,7 @@
-# Python
-Some Python Code
+# Python Tookit
 
-## maze.py:
-* Controller:&nbsp;&nbsp; Up: w&nbsp;&nbsp; Down: s&nbsp;&nbsp; Left: a&nbsp;&nbsp; Right: d
-* Quit:&nbsp;&nbsp; q
+## Index
+  - Simple Maze Game (support for tty/Tk/Browser)
+  - Sort Algorithms
+  - Tornado Web Components
+  - Encrpyt Account
